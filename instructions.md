@@ -1,25 +1,31 @@
-# Hello World
-
-You've installed Hello World — there's nothing to configure and nothing to set up. This page covers how to open the page it serves and where to read more. (If you're a developer, Hello World is also the recommended packaging template.)
+# Paperclip
 
 ## Documentation
 
-- [Hello World upstream docs](https://github.com/Start9Labs/hello-world/blob/master/README.md) — the README for the web server this package runs.
-- [StartOS Packaging Guide](https://docs.start9.com/packaging) — how to build a StartOS service package from that template.
+- [Paperclip docs](https://github.com/paperclipai/paperclip/tree/main/docs) — the upstream documentation, including guides for companies, agents, and adapters.
+- [Deployment notes](https://github.com/paperclipai/paperclip/tree/main/docs/deploy) — upstream reference for environment variables and runtime behavior.
 
 ## What you get on StartOS
 
-- **A running web server** that serves a single static page.
-- **Nothing to configure and no actions** — the service starts on its own and is immediately usable.
+- A single **Web UI** interface (port 3100) that serves both the Paperclip dashboard and its REST API, reachable over LAN, `.local`, and Tor.
+- An **embedded PostgreSQL** database and on-disk storage — no external database to set up.
+- Login is always required (Better Auth), and the first account you create becomes the instance admin.
 
 ## Getting set up
 
-There's no setup wizard, no admin password, no first-run prompt — Hello World is usable the moment it starts. To view the page it serves:
+1. Open the **Web UI** from the **Dashboard** tab and create your account. The first account to sign up becomes the admin.
+2. Run the **Set Provider API Keys** action and enter an Anthropic and/or OpenAI API key. Agents cannot run until at least one key is set — a setup task will remind you. The service restarts to apply the keys.
+3. Once you are signed in and keys are set, create a company, add agents, and assign goals from the dashboard.
 
-1. Open Hello World's **Dashboard** tab.
-2. Click the **Web UI** interface to open the served page in your browser.
+> Bring your own LLM provider keys. Paperclip runs the `claude`, `codex`, and `opencode` agent CLIs inside the service using the keys you provide.
 
-## Limitations
+## Using Paperclip
 
-- Hello World is intentionally minimal. It is not a useful service on its own; it exists to demonstrate the StartOS packaging system.
-- The page content is static and cannot be customized through the StartOS UI.
+### Web interface
+
+After login you land on the Paperclip dashboard, where you define business goals, assign AI agents to roles, and track their tasks, budgets, and approvals.
+
+### Actions
+
+- **Set Provider API Keys** — store or update the Anthropic / OpenAI keys your agents use. Run it whenever you rotate a key.
+- **Manage New User Sign-Ups** — once your account exists, run this and turn sign-ups off so no one else can register on your instance. Turn it back on temporarily when you want to add a teammate.

@@ -1,42 +1,66 @@
+import { storeJson } from './fileModels/store.json'
 import { i18n } from './i18n'
 import { sdk } from './sdk'
-import { uiPort } from './utils'
+import { dataDir, mainMounts, uiPort } from './utils'
 
 export const main = sdk.setupMain(async ({ effects }) => {
-  /**
-   * ======================== Setup (optional) ========================
-   *
-   * In this section, we fetch any resources or run any desired preliminary commands.
-   */
-  console.info(i18n('Starting Hello World!'))
+  console.info(i18n('Starting Paperclip!'))
 
-  /**
-   * ======================== Daemons ========================
-   *
-   * In this section, we create one or more daemons that define the service runtime.
-   *
-   * Each daemon defines its own health check, which can optionally be exposed to the user.
-   */
+  const store = await storeJson.read().const(effects)
+  if (!store?.betterAuthSecret) {
+    throw new Error('store.json betterAuthSecret not found')
+  }
+
+  // Every hostname StartOS assigns this interface must be trusted by
+  // Paperclip's private-hostname guard and Better Auth, or requests are
+  // rejected with a 403. Feeding them all in lets the .onion, .local and
+  // LAN-IP addresses work without hardcoding a single public URL.
+  const hostnames = await sdk.serviceInterface
+    .getOwn(effects, 'ui', (u) =>
+      u?.addressInfo
+        ?.filter({ exclude: { kind: ['link-local', 'bridge'] } })
+        .format('hostname-info')
+        .map((h) => h.hostname.toLowerCase()) || [],
+    )
+    .const()
+
   return sdk.Daemons.of(effects).addDaemon('primary', {
     subcontainer: await sdk.SubContainer.of(
       effects,
-      { imageId: 'hello-world' },
-      sdk.Mounts.of().mountVolume({
-        volumeId: 'main',
-        subpath: null,
-        mountpoint: '/data',
-        readonly: false,
-      }),
-      'hello-world-sub',
+      { imageId: 'paperclip' },
+      mainMounts,
+      'paperclip-sub',
     ),
-    exec: { command: ['hello-world'] },
+    exec: {
+      command: sdk.useEntrypoint(),
+      env: {
+        HOST: '0.0.0.0',
+        PORT: String(uiPort),
+        SERVE_UI: 'true',
+        PAPERCLIP_HOME: dataDir,
+        PAPERCLIP_DEPLOYMENT_MODE: 'authenticated',
+        PAPERCLIP_DEPLOYMENT_EXPOSURE: 'private',
+        PAPERCLIP_ALLOWED_HOSTNAMES: hostnames.join(','),
+        BETTER_AUTH_SECRET: store.betterAuthSecret,
+        PAPERCLIP_AUTH_DISABLE_SIGN_UP: store.disableSignUp ? 'true' : 'false',
+        ...(store.anthropicApiKey
+          ? { ANTHROPIC_API_KEY: store.anthropicApiKey }
+          : {}),
+        ...(store.openaiApiKey ? { OPENAI_API_KEY: store.openaiApiKey } : {}),
+      },
+    },
     ready: {
       display: i18n('Web Interface'),
+      gracePeriod: 120000,
       fn: () =>
-        sdk.healthCheck.checkPortListening(effects, uiPort, {
-          successMessage: i18n('The web interface is ready'),
-          errorMessage: i18n('The web interface is not ready'),
-        }),
+        sdk.healthCheck.checkWebUrl(
+          effects,
+          `http://localhost:${uiPort}/api/health`,
+          {
+            successMessage: i18n('The web interface is ready'),
+            errorMessage: i18n('The web interface is not ready'),
+          },
+        ),
     },
     requires: [],
   })
